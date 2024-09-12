@@ -1,23 +1,32 @@
-
-
 function drawBubbleRect() {
+  // Precompute common values
+  const halfRectWidth = RECT_WIDTH / 2;
+  const adjustedTolerance = halfRectWidth + tolerance.value();
+  const absSinBarRot = abs(sin(barRot));
+  const barYDifference = (RECT_WIDTH / 2 + tolerance.value()) * sin(barRot);
+
   push();
   noStroke();
   fill(bubbleGradientBottom);
+  
   beginShape();
   if (barRot > 0) {
-    vertex(RECT_WIDTH, barY + (RECT_WIDTH / 2 + tolerance.value()) * sin(barRot));
-    vertex(0, barY + (RECT_WIDTH / 2 + tolerance.value()) * sin(barRot));
-    vertex(0, barY - (RECT_WIDTH / 2 + tolerance.value()) * sin(barRot));  
+    vertex(RECT_WIDTH, barY + barYDifference);
+    vertex(0, barY + barYDifference);
+    vertex(0, barY - barYDifference);  
   } else {
-    vertex(RECT_WIDTH, barY + (RECT_WIDTH / 2 + tolerance.value()) * sin(barRot));
-    vertex(RECT_WIDTH, barY - (RECT_WIDTH / 2 + tolerance.value()) * sin(barRot));
-    vertex(0, barY - (RECT_WIDTH / 2 + tolerance.value()) * sin(barRot));
+    vertex(RECT_WIDTH, barY + barYDifference);
+    vertex(RECT_WIDTH, barY - barYDifference);
+    vertex(0, barY - barYDifference);
   }
   endShape();
+
   for (let i = 0; i < GRADIENT_STEPS; i++) {
-    fill(lerpColor(bubbleGradientBottom, bubbleGradientTop, i / GRADIENT_STEPS));
-    rect(0, barY + (RECT_WIDTH / 2 + tolerance.value()) * abs(sin(barRot)) + i * gradientStepSize, RECT_WIDTH, gradientStepSize);
+    const gradientFactor = i / GRADIENT_STEPS;
+    const yOffset = barY + adjustedTolerance * absSinBarRot + i * gradientStepSize;
+
+    fill(lerpColor(bubbleGradientBottom, bubbleGradientTop, gradientFactor));
+    rect(0, yOffset, RECT_WIDTH, gradientStepSize);
   }
   pop();
 }
