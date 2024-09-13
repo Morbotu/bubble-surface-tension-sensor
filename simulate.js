@@ -34,7 +34,7 @@ function calculateSurfaceTensionForce() {
 
 // Helper function to calculate spring force
 function calculateSpringForce() {
-  return 2 * springConstant.value() * barY;
+  return 2 * springConstant.value() * (barY - bottomStop.value());
 }
 
 // Helper function to calculate torque based on surface tension force
@@ -46,20 +46,16 @@ function calculateTotalTorque(surfaceTensionForce) {
 
 // Helper function to calculate the torque from the springs
 function calculateSpringTorque() {
-  // Calculate the displacement of each spring
-  const leftSpringDisplacement = SPRING_DISTANCE * sin(barRot); // Left spring displacement
-  const rightSpringDisplacement = SPRING_DISTANCE * sin(-barRot); // Right spring displacement
+  // Calculate the displacement of each spring based on bar rotation
+  const displacement = SPRING_DISTANCE * sin(barRot);  // Displacement for both springs
 
-  // Calculate the force on each spring based on displacement
-  const leftSpringForce = -springConstant.value() * leftSpringDisplacement;
-  const rightSpringForce = -springConstant.value() * rightSpringDisplacement;
+  // Calculate the force on each spring based on displacement (both springs pulling)
+  const springForce = -springConstant.value() * displacement;
 
-  // Calculate the torque contributed by each spring (force * distance from the center of mass)
-  const leftSpringTorque = leftSpringForce * SPRING_DISTANCE;
-  const rightSpringTorque = rightSpringForce * SPRING_DISTANCE;
+  // The torque contributed by each spring (force * distance from the center of mass)
+  const springTorque = 2 * springForce * SPRING_DISTANCE;
 
-  // Net torque is the difference between the two spring torques
-  return leftSpringTorque - rightSpringTorque;
+  return springTorque;
 }
 
 // Helper function to update bar rotation
@@ -117,13 +113,16 @@ function shouldStopSimulation(surfaceTensionForce, springForce, dynamicFriction,
   const barStopped = abs(surfaceTensionForce - springForce - barMass.value() * GRAVITY) < dynamicFriction;
   
   // Stop the simulation if both conditions are satisfied
-  return isForceSmall && isVelocitySmall || barStopped;
+  return isForceSmall && isVelocitySmall || barStopped || time > 4;
 }
 
 
 // Helper function to update the graph and time data
 function updateGraphAndTime() {
   time += dt.value();
+
+  if (calibrationGraph) return;
+
   barYPoints.push(barY);
 
   if (barYPoints.length * GRAPH_X_SCALE > GRAPH_WIDTH) {
@@ -134,8 +133,8 @@ function updateGraphAndTime() {
 
 // Helper function to check if the bar exceeds bounds
 function checkBarBounds() {
-  if (barY > RECT_HEIGHT - BAR_HEIGHT) {
-    barY = RECT_HEIGHT - BAR_HEIGHT;
+  if (barY > RECT_HEIGHT - BAR_HEIGHT || barY < bottomStop.value()) {
+    barY = barY > RECT_HEIGHT - BAR_HEIGHT ? RECT_HEIGHT - BAR_HEIGHT : bottomStop.value();
     barV = 0;
     simulate = false;
   }

@@ -47,15 +47,15 @@ function drawFrame() {
 // Helper function to draw the outer frame with the inner contour (cutout)
 function drawOuterFrameWithContour() {
   beginShape();
-  vertex(-2 * tolerance.value(), -30);
+  vertex(-2 * tolerance.value(), bottomStop.value() + REST_DISTANCE);
   vertex(-2 * tolerance.value(), RECT_HEIGHT + 2 * tolerance.value());
   vertex(RECT_WIDTH + 2 * tolerance.value(), RECT_HEIGHT + 2 * tolerance.value());
-  vertex(RECT_WIDTH + 2 * tolerance.value(), -30);
+  vertex(RECT_WIDTH + 2 * tolerance.value(), bottomStop.value() + REST_DISTANCE);
 
   // Draw the inner cutout using contour
   beginContour();
-  vertex(0, -30);
-  vertex(RECT_WIDTH, -30);
+  vertex(0, bottomStop.value() + REST_DISTANCE);
+  vertex(RECT_WIDTH, bottomStop.value() + REST_DISTANCE);
   vertex(RECT_WIDTH, RECT_HEIGHT);
   vertex(0, RECT_HEIGHT);
   endContour();
@@ -155,7 +155,7 @@ function drawYAxisLabel() {
 
 function drawGraph() {
   push();
-  translate((-GRAPH_WIDTH + RECT_WIDTH * unitScale.value()) / 2, -200);
+  translate((-GRAPH_WIDTH + RECT_WIDTH * unitScale.value()) / 2, -250);
 
   // Draw graph axes
   drawGraphAxes();
@@ -166,6 +166,8 @@ function drawGraph() {
   // Draw axis labels
   drawAxisLabels();
 
+  drawLegend();
+
   // Draw ticks on the X and Y axes
   drawXTicks();
   drawYTicks();
@@ -173,52 +175,82 @@ function drawGraph() {
   pop();
 }
 
+function drawLegend() {
+  push();
+  textAlign(LEFT, CENTER);
+  strokeWeight(3);
+  text("Equilibrium", GRAPH_WIDTH - 60, -GRAPH_HEIGHT + 10);
+  text("Hoogte", GRAPH_WIDTH - 60, -GRAPH_HEIGHT + 30);
+  stroke("blue");
+  line(GRAPH_WIDTH - 100, -GRAPH_HEIGHT + 10, GRAPH_WIDTH - 80, -GRAPH_HEIGHT + 10);
+  stroke("red");
+  line(GRAPH_WIDTH - 100, -GRAPH_HEIGHT + 30, GRAPH_WIDTH - 80, -GRAPH_HEIGHT + 30);
+  pop();
+  push();
+  noFill();
+  rect(GRAPH_WIDTH - 120, -GRAPH_HEIGHT - 5, 130, 50);
+  pop();
+}
+
 // Helper function to draw the X and Y axes
 function drawGraphAxes() {
-  line(0, 0, 0, GRAPH_HEIGHT); // Y-axis
-  line(0, 0, GRAPH_WIDTH, 0);  // X-axis
+  line(0, -Y_START, 0, GRAPH_HEIGHT); // Y-axis
+  line(0, Y_START, GRAPH_WIDTH, Y_START);  // X-axis
 }
 
 // Helper function to plot points on the graph
 function plotGraphPoints() {
   push();
   stroke("red");
+  noFill();
+  beginShape();
   for (let i = 0; i < barYPoints.length; i++) {
-    point(i * GRAPH_X_SCALE, barYPoints[i] * GRAPH_Y_SCALE); // Plot points based on barYPoints
+    vertex(i * GRAPH_X_SCALE, barYPoints[i][0] * GRAPH_Y_SCALE + Y_START); // Plot points based on barYPoints
   }
+  endShape();
+  stroke("blue");
+  beginShape();
+  for (let i = 0; i < barYPoints.length; i++) {
+    vertex(i * GRAPH_X_SCALE, barYPoints[i][1] * GRAPH_Y_SCALE + Y_START); // Plot points based on barYPoints
+  }
+  endShape();
   pop();
 }
 
 // Helper function to draw the X and Y axis labels
 function drawAxisLabels() {
+  // const yLabel = calibrationGraph ? "dy (mm)" : "y (mm)";
+  const yLabel = calibrationGraph ? "y (mm)" : "y (mm)";
+  const xLabel = calibrationGraph ? "k (N/m)" : "t (s)";
+
   scale(1, -1);  // Invert for correct text orientation
-  text("0", -10, 0); // Label for X-axis origin
-  text("0", 0, 12);  // Label for Y-axis origin
+  text("0", -10, -Y_START); // Label for X-axis origin
+  text("0", 4, 12 - Y_START);  // Label for Y-axis origin
 
   // Y-axis label
   push();
   rotate(-HALF_PI);
   textAlign(CENTER);
-  text("y (mm)", GRAPH_HEIGHT / 2, -40);
+  text(yLabel, GRAPH_HEIGHT / 2, -40);
   pop();
 
   // X-axis label
   push();
   textAlign(CENTER);
-  text("t (s)", GRAPH_WIDTH / 2, 50);
+  text(xLabel, GRAPH_WIDTH / 2, 50);
   pop();
 }
 
 // Helper function to draw ticks and labels on the X-axis
 function drawXTicks() {
   for (let x = X_TICK_SPACING; x < GRAPH_WIDTH + X_TICK_SPACING; x += X_TICK_SPACING) {
-    line(x - startXGraph % X_TICK_SPACING, 3, x - startXGraph % X_TICK_SPACING, -3); // Tick marks
+    line(x - startXGraph % X_TICK_SPACING, 3 - Y_START, x - startXGraph % X_TICK_SPACING, -3 - Y_START); // Tick marks
 
     // Tick labels
     push();
-    translate((x - startXGraph % X_TICK_SPACING), 15);
+    translate((x - startXGraph % X_TICK_SPACING), 15 - Y_START);
     rotate(QUARTER_PI);  // Rotate labels for better readability
-    text(((x + X_TICK_SPACING * Math.floor(startXGraph / X_TICK_SPACING)) / GRAPH_X_SCALE * dt.value()).toFixed(3), 0, 0);
+    text(((x + X_TICK_SPACING * Math.floor(startXGraph / X_TICK_SPACING)) / GRAPH_X_SCALE * (calibrationGraph ? 0.01 : dt.value())).toFixed(3), 0, 0);
     pop();
   }
 }
@@ -226,16 +258,17 @@ function drawXTicks() {
 // Helper function to draw ticks and labels on the Y-axis
 function drawYTicks() {
   textAlign(RIGHT, CENTER);
-  for (let y = -Y_TICK_SPACING; y > -GRAPH_HEIGHT; y -= Y_TICK_SPACING) {
+  for (let y = -Y_TICK_SPACING + Y_START; y > -GRAPH_HEIGHT; y -= Y_TICK_SPACING) {
     line(3, y, -3, y);  // Tick marks
-    text(-y / GRAPH_Y_SCALE, -5, y); // Tick labels
+    if (y + Y_START == 0) continue;
+    text(-(y + Y_START) / GRAPH_Y_SCALE, -5, y); // Tick labels
   }
 }
 
 function drawSprings() {
   const springWindings = 7;
-  const y1 = barY - (RECT_WIDTH / 2 - 20) * sin(barRot);
-  const y2 = barY + (RECT_WIDTH / 2 - 20) * sin(barRot);
+  const y1 = barY - bottomStop.value() - REST_DISTANCE - (RECT_WIDTH / 2 - 20) * sin(barRot);
+  const y2 = barY - bottomStop.value() - REST_DISTANCE + (RECT_WIDTH / 2 - 20) * sin(barRot);
 
   push();
   noFill();
@@ -248,10 +281,10 @@ function drawSprings() {
 
   // Draw spring end points
   strokeWeight(5);
-  point(RECT_WIDTH / 2 - SPRING_DISTANCE, y1);
-  point(RECT_WIDTH / 2 + SPRING_DISTANCE, y2);
-  point(RECT_WIDTH / 2 + SPRING_DISTANCE, -30);
-  point(RECT_WIDTH / 2 - SPRING_DISTANCE, -30);
+  point(RECT_WIDTH / 2 - SPRING_DISTANCE, y1 + bottomStop.value() + REST_DISTANCE);
+  point(RECT_WIDTH / 2 + SPRING_DISTANCE, y2 + bottomStop.value() + REST_DISTANCE);
+  point(RECT_WIDTH / 2 + SPRING_DISTANCE, bottomStop.value() + REST_DISTANCE);
+  point(RECT_WIDTH / 2 - SPRING_DISTANCE, bottomStop.value() + REST_DISTANCE);
 
   pop();
 }
@@ -261,13 +294,13 @@ function drawSpring(xPos, yEnd) {
   const springWindings = 7;
 
   beginShape();
-  vertex(xPos, -30);
-  vertex(xPos, -20);
+  vertex(xPos, bottomStop.value() + REST_DISTANCE);
+  vertex(xPos, bottomStop.value() + REST_DISTANCE + 10);
   for (let i = 1; i < springWindings; i += 2) {
-    vertex(xPos - 10, i * (yEnd + 10) / springWindings - 20);
-    vertex(xPos + 10, (i + 1) * (yEnd + 10) / springWindings - 20);
+    vertex(xPos - 10, i * (yEnd - 20) / springWindings + bottomStop.value() + REST_DISTANCE + 10);
+    vertex(xPos + 10, (i + 1) * (yEnd - 20) / springWindings + bottomStop.value() + REST_DISTANCE + 10);
   }
-  vertex(xPos, yEnd - 10);
-  vertex(xPos, yEnd);
+  vertex(xPos, yEnd - 10 + bottomStop.value() + REST_DISTANCE);
+  vertex(xPos, yEnd + bottomStop.value() + REST_DISTANCE);
   endShape();
 }
